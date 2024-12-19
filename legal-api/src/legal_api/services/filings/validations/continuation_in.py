@@ -52,7 +52,6 @@ def validate(filing_json: dict) -> Optional[Error]:  # pylint: disable=too-many-
         return msg  # Cannot continue validation without legal_type
 
     msg.extend(validate_business_in_colin(filing_json, filing_type))
-    msg.extend(validate_continuation_in_authorization(filing_json, filing_type))
     msg.extend(_validate_foreign_jurisdiction(filing_json, filing_type, legal_type))
     msg.extend(validate_name_request(filing_json, legal_type, filing_type))
 
