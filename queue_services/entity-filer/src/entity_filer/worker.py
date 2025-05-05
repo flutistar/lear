@@ -48,7 +48,9 @@ to be pursued.
 import json
 import os
 import uuid
+import copy
 from typing import Dict
+from http import HTTPStatus
 
 import nats
 from entity_queue_common.messages import publish_email_message
@@ -59,8 +61,9 @@ from gcp_queue import SimpleCloudEvent, to_queue_message
 from legal_api.core import Filing as FilingCore
 from legal_api.models import Business, Filing, db
 from legal_api.models.db import VersioningProxy, init_db
-from legal_api.services import Flags
+from legal_api.services import Flags, DocumentRecordService
 from legal_api.utils.datetime import datetime, timezone
+from legal_api.constants import DOCUMENT_TYPES
 from sentry_sdk import capture_message
 from sqlalchemy.exc import OperationalError
 
@@ -284,7 +287,7 @@ async def process_filing(filing_msg: Dict,  # pylint: disable=too-many-branches,
                                                     for item in sublist])
             if is_correction:
                 filing_meta.correction = {}
-            
+
             for filing in legal_filings:
                 if filing.get('alteration'):
                     alteration.process(business, filing_submission, filing, filing_meta, is_correction)
@@ -419,6 +422,34 @@ async def process_filing(filing_msg: Dict,  # pylint: disable=too-many-branches,
             filing_submission._meta_data = json.loads(  # pylint: disable=W0212
                 json.dumps(filing_meta.asjson, default=json_serial)
             )
+            if flags.is_on('enable-document-records'):
+                document_id_state = filing_submission.filing_json['filing']['header']['documentIdState']
+                filing_type = filing_submission.filing_json['filing']['header']['name']
+
+                if filing_type and document_id_state['valid']:
+                    try:
+                        document_class = DOCUMENT_TYPES[filing_type]['class']
+                        document_type = DOCUMENT_TYPES[filing_type]['type']
+                        # Create document record
+                        res = DocumentRecordService.create_document_record(
+                            document_class=document_class,
+                            document_type=document_type,
+                            filing_id=filing_submission.id,
+                            business_id=filing_submission.filing_json['filing']['business']['identifier'],
+                            consumer_document_id=document_id_state['consumerDocumentId']
+                        )
+                        response_json = res.json()
+                        if document_id_state['consumerDocumentId'] == '' and res.status_code == HTTPStatus.CREATED:
+                            # Update consumerDocumentId
+                            copied_json = copy.deepcopy(filing_submission.filing_json)
+                            copied_json['filing']['header']['documentIdState']['consumerDocumentId'] = response_json['consumerDocumentId']
+                            filing_submission._filing_json = copied_json
+                        if res.status_code == 400:
+                            current_app.logger.error(
+                                f"Document Record Creation Error: {filing_submission.id}, {response_json['rootCause']}", exc_info=True)
+                            print(f"""Document Record Creation Error: {document_class}, {document_type}, {filing_submission.id}, {response_json['rootCause']}""")
+                    except Exception as error:
+                        current_app.logger.error(f"Document Record Creation Erro: {error}")
 
             db.session.add(filing_submission)
             db.session.commit()
@@ -513,7 +544,6 @@ async def process_filing(filing_msg: Dict,  # pylint: disable=too-many-branches,
 
 
 async def cb_subscription_handler(msg: nats.aio.client.Msg):
-# async def cb_subscription_handler(msg):
     """Use Callback to process Queue Msg objects."""
     try:
         current_app.logger.info('Received raw message seq:%s, data=  %s', msg.sequence, msg.data.decode())
@@ -528,7 +558,7 @@ async def cb_subscription_handler(msg: nats.aio.client.Msg):
                                  '\n\nThis message has been put back on the queue for reprocessing.',
                                  json.dumps(filing_msg), exc_info=True)
         raise err  # we don't want to handle the error, so that the message gets put back on the queue
-    except (QueueException, Exception) as err:  # pylint: disable=broad-except
+    except (QueueException, Exception):  # pylint: disable=broad-except
         # Catch Exception so that any error is still caught and the message is removed from the queue
         capture_message('Queue Error:' + json.dumps(filing_msg), level='error')
         current_app.logger.error('Queue Error: %s', json.dumps(filing_msg), exc_info=True)

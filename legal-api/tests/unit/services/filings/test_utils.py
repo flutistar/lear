@@ -50,7 +50,6 @@ def test_get_str(f, p):
 
 
 def _upload_file(page_size, invalid, document_class=None, document_type=None):
-    print("TYUIUYTYUYTYYUYYTYTYYTYTYYUYTYTYTYTYTYTYTYTYTYTYTYTYTYTYTYTYTYTYTYYYTYTY")
     if flags.is_on('enable-document-records'):
         file_path = "tests/unit/invalid_size.pdf" if invalid else "tests/unit/valid_size.pdf"
         raw_data = None

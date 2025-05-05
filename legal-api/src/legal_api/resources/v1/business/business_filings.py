@@ -18,6 +18,7 @@ Provides all the search and retrieval from the business entity datastore.
 from http import HTTPStatus
 from typing import Tuple, Union
 
+import re
 import requests  # noqa: I001; grouping out of order to make both pylint & isort happy
 from requests import exceptions  # noqa: I001; grouping out of order to make both pylint & isort happy
 from flask import current_app, g, jsonify, request
@@ -246,10 +247,7 @@ class ListFilingResource(Resource):
             return ListFilingResource._create_deletion_locked_response(identifier, filing)
 
         try:
-            if flags.is_on('enable-document-records'):
-                ListFilingResource._delete_from_drs(filing)
-            else:    
-                ListFilingResource._delete_from_minio(filing)
+            ListFilingResource._delete_from_document_storage(filing)
             filing.delete()
         except BusinessException as err:
             return jsonify({'errors': [{'error': err.error}, ]}), err.status_code
@@ -265,7 +263,8 @@ class ListFilingResource(Resource):
         return jsonify({'message': _('Filing deleted.')}), HTTPStatus.OK
 
     @staticmethod
-    def _delete_from_minio(filing):
+    def _delete_from_document_storage(filing):
+        drs_id_pattern = r"^DS\d{10}$"
         if (filing.filing_type == Filing.FILINGS['incorporationApplication'].get('name')
                 and (cooperative := filing.filing_json
                      .get('filing', {})
@@ -276,51 +275,33 @@ class ListFilingResource(Resource):
                      .get('filing', {})
                      .get('alteration', {}))):
             if rules_file_key := cooperative.get('rulesFileKey', None):
-                MinioService.delete_file(rules_file_key)
+                if re.match(drs_id_pattern, rules_file_key):
+                    DocumentRecordService.delete_document(rules_file_key)
+                else:
+                    MinioService.delete_file(rules_file_key)
             if memorandum_file_key := cooperative.get('memorandumFileKey', None):
-                MinioService.delete_file(memorandum_file_key)
+                if re.match(drs_id_pattern, memorandum_file_key):
+                    DocumentRecordService.delete_document(memorandum_file_key)
+                else:
+                    MinioService.delete_file(memorandum_file_key)
         elif filing.filing_type == Filing.FILINGS['dissolution'].get('name') \
                 and (affidavit_file_key := filing.filing_json
                      .get('filing', {})
                      .get('dissolution', {})
                      .get('affidavitFileKey', None)):
-            MinioService.delete_file(affidavit_file_key)
+            if re.match(drs_id_pattern, affidavit_file_key):
+                DocumentRecordService.delete_document(affidavit_file_key)
+            else:
+                MinioService.delete_file(affidavit_file_key)
         elif filing.filing_type == Filing.FILINGS['courtOrder'].get('name') \
                 and (file_key := filing.filing_json
                      .get('filing', {})
                      .get('courtOrder', {})
                      .get('fileKey', None)):
-            MinioService.delete_file(file_key)
-
-    @staticmethod
-    def _delete_from_drs(filing):
-        document_service_id = ''
-        if (filing.filing_type == Filing.FILINGS['incorporationApplication'].get('name')
-                and (cooperative := filing.filing_json
-                     .get('filing', {})
-                     .get('incorporationApplication', {})
-                     .get('cooperative', None))) or \
-            (filing.filing_type == Filing.FILINGS['alteration'].get('name')
-                and (cooperative := filing.filing_json
-                     .get('filing', {})
-                     .get('alteration', {}))):
-            if rules_file_key := cooperative.get('rulesFileKey', None):
-                document_service_id = rules_file_key
-            if memorandum_file_key := cooperative.get('memorandumFileKey', None):
-                document_service_id = memorandum_file_key
-        elif filing.filing_type == Filing.FILINGS['dissolution'].get('name') \
-                and (affidavit_file_key := filing.filing_json
-                     .get('filing', {})
-                     .get('dissolution', {})
-                     .get('affidavitFileKey', None)):
-            document_service_id = affidavit_file_key
-        elif filing.filing_type == Filing.FILINGS['courtOrder'].get('name') \
-                and (file_key := filing.filing_json
-                     .get('filing', {})
-                     .get('courtOrder', {})
-                     .get('fileKey', None)):
-            document_service_id = file_key
-        DocumentRecordService.delete_document(document_service_id)
+            if re.match(drs_id_pattern, file_key):
+                DocumentRecordService.delete_document(file_key)
+            else:
+                MinioService.delete_file(file_key)
 
     @staticmethod
     def _create_deletion_locked_response(identifier, filing):

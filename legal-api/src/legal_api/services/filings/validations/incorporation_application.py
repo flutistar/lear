@@ -30,7 +30,7 @@ from .common_validations import (  # noqa: I001
     validate_court_order,
     validate_name_request,
     validate_parties_names,
-    validate_file_on_drs,
+    validate_pdf,
     validate_share_structure,
 )
 

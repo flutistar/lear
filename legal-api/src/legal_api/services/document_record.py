@@ -13,11 +13,9 @@
 # limitations under the License.
 """This module is a wrapper for Document Record Service."""
 
-import io
-import base64
 from typing import Optional
 import requests
-from flask import current_app, request, send_file
+from flask import current_app
 from flask_babel import _
 import PyPDF2
 
@@ -26,25 +24,28 @@ from legal_api.constants import DocumentTypes
 class DocumentRecordService:
     """Document Storage class."""
 
+    def __init__(self):
+        self.doc_api_url = current_app.config.get('DOC_API_URL', 'https://test.api.connect.gov.bc.ca/doc-dev/api/v1') # pylint: disable=invalid-name
+        self.default_header = {
+            'x-apikey': current_app.config.get('DOC_API_KEY', 'KGGGEy1K67LgOZvdei6FPH23UtOf3oSF'),
+            'Account-Id': current_app.config.get('DOC_API_ACCOUNT_ID', 'legal-api')
+        }
 
-    @staticmethod
-    def upload_document(document_class: str, document_type: str, file) -> dict:
+    def upload_document(self, document_class: str, document_type: str, file) -> dict:
         """Upload document to Docuemtn Record Service."""
          # Ensure file exists
         if not file:
             current_app.logger.debug('No file found in request.')
             return {'data': 'File not provided'}
-        
-        DOC_API_URL = current_app.config.get('DOC_API_URL', '') # pylint: disable=invalid-name
-        url = f'https://bcregistry-dev.apigee.net/doc/api/v1/documents/{document_class}/{document_type}'
+
+        url = f'{self.doc_api_url}/documents/{document_class}/{document_type}'
 
         try:
             response_body = requests.post(
                 url,
                 data=file,
                 headers={
-                    'x-apikey': current_app.config.get('DOC_API_KEY', ''),
-                    'Account-Id': current_app.config.get('DOC_API_ACCOUNT_ID', ''),
+                    **self.default_header,
                     'Content-Type': 'application/pdf'
                 }
             ).json()
@@ -59,40 +60,29 @@ class DocumentRecordService:
             current_app.logger.debug(f"Error on uploading document {e}")
             return {}
 
-    @staticmethod
-    def update_document(document: bytes, document_service_id: str, document_name: str) -> dict:
+    def update_document(self, document: bytes, document_service_id: str, document_name: str) -> dict:
         """Update a document on Document Record Service (DRS)."""
-
-        DOC_API_URL = current_app.config.get('DOC_API_URL', '')
-        url = f"{DOC_API_URL}/documents/{document_service_id}?consumerFilename={document_name}"
-
-        headers = {
-            'x-apikey': current_app.config.get('DOC_API_KEY', ''),
-            'Account-Id': current_app.config.get('DOC_API_ACCOUNT_ID', ''),
-            'Content-Type': 'application/pdf'
-        }
+        url = f"{self.doc_api_url}/documents/{document_service_id}?consumerFilename={document_name}"
 
         try:
-            response = requests.put(url, data=document, headers=headers)
+            response = requests.put(url, data=document, headers={
+                **self.default_header,
+                'Content-Type': 'application/pdf'
+            })
             response.raise_for_status()
             return response.json()
         except requests.exceptions.RequestException as error:
             current_app.logger.error(f"Error updating document on DRS: {error}")
             return {"error": str(error), "response": error.response.json() if error.response else None}
 
-    @staticmethod
-    def delete_document(document_service_id: str) -> dict:
+    def delete_document(self, document_service_id: str) -> dict:
         """Delete document from Document Record Service."""
-        DOC_API_URL = current_app.config.get('DOC_API_URL', '') # pylint: disable=invalid-name
-        url = f'{DOC_API_URL}/documents/{document_service_id}'
+        url = f'{self.doc_api_url}/documents/{document_service_id}'
 
         try:
             response = requests.patch(
                 url, json={ 'removed': True },
-                headers={
-                    'x-apikey': current_app.config.get('DOC_API_KEY', ''),
-                    'Account-Id': current_app.config.get('DOC_API_ACCOUNT_ID', ''),
-                }
+                headers=self.default_header
             ).json()
             current_app.logger.debug(f'Delete document from document record service {response}')
             return response
@@ -100,18 +90,13 @@ class DocumentRecordService:
             current_app.logger.debug(f'Error on deleting document {e}')
             return {}
 
-    @staticmethod
-    def get_document(document_class: str, document_service_id: str) -> dict:
+    def get_document(self, document_class: str, document_service_id: str) -> dict:
         """Get document record from Document Record Service."""
-        DOC_API_URL = current_app.config.get('DOC_API_URL', '') # pylint: disable=invalid-name
-        url = f'{DOC_API_URL}/searches/{document_class}?documentServiceId={document_service_id}'
+        url = f'{self.doc_api_url}/searches/{document_class}?documentServiceId={document_service_id}'
         try:
             response = requests.get(
                 url,
-                headers={
-                    'x-apikey': current_app.config.get('DOC_API_KEY', ''),
-                    'Account-Id': current_app.config.get('DOC_API_ACCOUNT_ID', ''),
-                }
+                headers=self.default_header
             ).json()
             current_app.logger.debug(f'Get document from document record service {document_service_id}')
             return response[0]
@@ -126,22 +111,39 @@ class DocumentRecordService:
 
         response = requests.get(doc_object['documentURL']) # Download file from storage
         response.raise_for_status()  # Raise an HTTPError for bad responses (4xx and 5xx)
-
+        print(response.content)
         return response.content
 
-    @staticmethod
-    def update_business_identifier(business_identifier: str, document_service_id: str):
+    def create_document_record(
+            self,
+            document_class: str,
+            document_type: str,
+            business_id: str,
+            filing_id: str,
+            consumer_document_id: str = ''
+        ):
+        url = f'{self.doc_api_url}/documents/{document_class}/{document_type}?consumerIdentifier={business_id}&consumerReferenceId={filing_id}'
+
+        if consumer_document_id:
+            url = f'{url}&consumerDocumentId={consumer_document_id}'
+
+        response = requests.post(
+            url,
+            headers={
+                **self.default_header,
+                'Content-Type': 'application/pdf'
+            }
+        )
+        return response
+
+    def update_business_identifier(self, business_identifier: str, document_service_id: str):
         """Update business identifier up on approval."""
-        DOC_API_URL = current_app.config.get('DOC_API_URL', '') # pylint: disable=invalid-name
-        url = f'{DOC_API_URL}/documents/{document_service_id}'
+        url = f'{self.doc_api_url}/documents/{document_service_id}'
 
         try:
             response = requests.patch(
                 url, json={ 'consumerIdentifer': business_identifier },
-                headers={
-                    'x-apikey': current_app.config.get('DOC_API_KEY', ''),
-                    'Account-Id': current_app.config.get('DOC_API_ACCOUNT_ID', ''),
-                }
+                headers=self.default_header
             ).json()
             current_app.logger.debug(f'Update business identifier - {business_identifier}')
             return response

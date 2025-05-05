@@ -168,6 +168,86 @@ class DocumentTypes(Enum):
     NWP = "NWP"
 
 DOCUMENT_TYPES = {
+    'alteration': {
+        'class': DocumentClasses.SOCIETY.value,
+        'type': DocumentTypes.BYLT.value,
+    },
+    'annualReport': {
+        'class': DocumentClasses.SOCIETY.value,
+        'type': DocumentTypes.ANNR.value,
+    },
+    'changeOfAddress': {
+        'class': DocumentClasses.CORP.value,
+        'type': DocumentTypes.ADDR.value
+    },
+    'changeOfDirectors': {
+        'class': DocumentClasses.SOCIETY.value,
+        'type': DocumentTypes.DIRS.value
+    },
+    'changeOfName': {
+        'class': DocumentClasses.OTHER.value,
+        'type': DocumentTypes.CHNM.value
+    },
+    'dissolution': {
+        'class': DocumentClasses.CORP.value,
+        'type': DocumentTypes.DISS.value
+    },
+    # 'incorporationApplication': {}
+    'registration': {
+        'class': DocumentClasses.LP_LLP.value,
+        'type': DocumentTypes.LPRG.value
+    },
+    'conversion': {
+        'class': DocumentClasses.OTHER.value,
+        'type': DocumentTypes.CNVS.value
+    },
+    'courtOrder': {
+        'class': DocumentClasses.CORP.value,
+        'type': DocumentTypes.COU.value,
+    },
+    'registrarsNotation': {
+        'class': DocumentClasses.OTHER.value,
+        'type': DocumentTypes.REGN.value
+    },
+    'registrarsOrder': {
+        'class': DocumentClasses.OTHER.value,
+        'type': DocumentTypes.REGO.value
+    },
+    'correction': {
+        'class': DocumentClasses.COOP.value,
+        'type': DocumentTypes.CORC.value
+    },
+    # 'transition': {},
+    # 'changeOfRegistration': {},
+    # 'putBackOff': {},
+    # 'putBackOn': {},
+    # 'restoration': {},
+    # 'adminFreeze': {},
+    # 'consentAmalgamationOut': {},
+    'amalgamationOut': {
+        'class': DocumentClasses.CORP.value,
+        'type': DocumentTypes.AMLO.value
+    },
+    'consentContinuationOut': {},
+    'continuationOut': {
+        'class': DocumentClasses.CORP.value,
+        'type': DocumentTypes.CNTO.value
+    },
+    # 'agmLocationChange': {},
+    # 'agmExtension': {},
+    # 'noticeOfWithdrawl': {},
+    'amalgamationApplication': {
+        'class': DocumentClasses.CORP.value,
+        'type': DocumentTypes.AMLG.value
+    },
+    'continuationIn': {
+        'class': DocumentClasses.CORP.value,
+        'type': DocumentTypes.CNTI.value
+    },
+    # 'transparencyRegister': {},
+    # 'appointReceiver': {},
+    # 'ceaseReceiver': {},
+    # 'specialResolution': {},
     'coopMemorandum': {
         'class': DocumentClasses.COOP.value,
         'type': DocumentTypes.COOP_MEMORANDUM.value
