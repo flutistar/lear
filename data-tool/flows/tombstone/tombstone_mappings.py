@@ -53,10 +53,10 @@ class EventFilings(str, Enum):
 
     # Consent Continuation Out
     FILE_CONTO = 'FILE_CONTO'
-    
+
     # Continuation Out
     FILE_COUTI = 'FILE_COUTI'
-    
+
     # Continuation In
     FILE_CONTI = 'FILE_CONTI'
     FILE_CONTU = 'FILE_CONTU'
@@ -129,10 +129,13 @@ class EventFilings(str, Enum):
     # FILE_ADCOL = 'FILE_ADCOL'
     FILE_NOAPL = 'FILE_NOAPL'
     FILE_NOARM = 'FILE_NOARM'
+    FILE_NOCAL = 'FILE_NOCAL'
     FILE_NOCDS = 'FILE_NOCDS'
     FILE_NOCEL = 'FILE_NOCEL'
     FILE_NOCER = 'FILE_NOCER'
     FILE_NOLDS = 'FILE_NOLDS'
+    FILE_NOCRM = 'FILE_NOCRM'
+    FILE_NOTRA = 'FILE_NOTRA'
 
     # TODO: Notice of Withdrawal - unsupported
     FILE_NWITH = 'FILE_NWITH'
@@ -176,7 +179,7 @@ class EventFilings(str, Enum):
     @classmethod
     def has_value(cls, value):
         return value in cls._value2member_map_
-    
+
 
 EVENT_FILING_LEAR_TARGET_MAPPING = {
     EventFilings.FILE_AGMDT: 'agmExtension',
@@ -281,10 +284,13 @@ EVENT_FILING_LEAR_TARGET_MAPPING = {
     # TODO: Liquidation - unsupported
     EventFilings.FILE_NOAPL: 'appointLiquidator',
     EventFilings.FILE_NOARM: 'appointReceiver',
+    EventFilings.FILE_NOCAL: 'changeLiquidatorAddress',
     EventFilings.FILE_NOCDS: 'changeRespectingDCR',
     EventFilings.FILE_NOCEL: 'ceaseLiquidator',
     EventFilings.FILE_NOCER: 'ceaseReceiver',
     EventFilings.FILE_NOLDS: 'locationDCR',
+    EventFilings.FILE_NOCRM: 'changeReceiverAddress',
+    EventFilings.FILE_NOTRA: 'transferRecordsOffice',
 
     EventFilings.FILE_NWITH: 'noticeOfWithdrawal',
 
@@ -399,21 +405,21 @@ EVENT_FILING_DISPLAY_NAME_MAPPING = {
 
     # TODO: Liquidation - unsupported (need to check if anything missing)
     # NOLDS: "Notice of Location of Dissolved Company's Records"
-    # NOTRA: 'Notice of Transfer of Records'
-    # NOCAL: 'Notice of Change of Address of Liquidator And/Or Liquidation Records Office'
     # LIQUR: 'Liquidation Report'
     # LQWOS: 'Notice of Withdrawal Statement of Intent to Liquidate'
     EventFilings.FILE_NOAPL: 'Notice of Appointment of Liquidator',
     EventFilings.FILE_NOARM: 'Notice of Appointment of Receiver or Receiver Manager',
+    EventFilings.FILE_NOCAL: 'Notice of Change of Address of Liquidator And/Or Liquidation Records Office',
     EventFilings.FILE_NOCDS: 'Notice of Change Respecting Dissolved Company\'s Records',
     EventFilings.FILE_NOCEL: 'Notice of Ceasing to Act as Liquidator',
     EventFilings.FILE_NOCER: 'Notice of Ceasing to Act as Receiver or Receiver Manager',
     EventFilings.FILE_NOLDS: 'Notice of Location of Dissolved Company\'s Records',
+    EventFilings.FILE_NOCRM: 'Notice of Change of Address of Receiver or Receiver Manager',
+    EventFilings.FILE_NOTRA: 'Notice of Transfer of Records',
     # LQSIN: 'Statement of Intent to Liquidate'
     # LQSCO: 'Stay of Liquidation - Court Ordered'
     # LQDIS: 'Discontinuance of Liquidation - Court Ordered'
     # LQCON: 'Continuance of Liquidation - Court Ordered'
-    # NOCRM: 'Notice of Change of Address of Receiver or Receiver Manager'
     # ADVLQ: 'Application for Dissolution (Voluntary Liquidation)'
     # AM_LR: 'Amendment - Liquidation Report'
     # CO_LR: 'Correction - Liquidation Report'
@@ -423,7 +429,7 @@ EVENT_FILING_DISPLAY_NAME_MAPPING = {
     EventFilings.SYSDL_NULL: None,
     EventFilings.FILE_AM_PF: 'Amendment - Put Back Off',
     EventFilings.FILE_CO_PF: 'Correction - Put Back Off',
-    
+
     EventFilings.FILE_AM_PO: 'Amendment - Put Back On',
     EventFilings.FILE_CO_PO: 'Correction - Put Back On',
 
@@ -500,7 +506,7 @@ LEAR_STATE_FILINGS = [
     'continuationOut',
     'amalgamationOut',
     # TODO: other state filings that lear doesn't support for now e.g. liquidation
-    
+
     # ingore the following since we won't map to them
     # 'dissolved', 'restorationApplication', 'continuedOut'
 ]

@@ -33,8 +33,8 @@ requests = "^2.32.3"
 [package.source]
 type = "git"
 url = "https://github.com/bcgov/lear.git"
-reference = "HEAD"
-resolved_reference = "f888b656fa266eb108880a467bf6728dc6efc171"
+reference = "main"
+resolved_reference = "a316365e6e181c7a9f0f2c06878bf8a23d9fa0bb"
 subdirectory = "python/common/business-registry-account"
 
 [[package]]
@@ -1134,6 +1134,21 @@ pytest = ">=6.2.5"
 dev = ["pre-commit", "pytest-asyncio", "tox"]
 
 [[package]]
+name = "python-dateutil"
+version = "2.9.0"
+description = "Extensions to the standard Python datetime module"
+optional = false
+python-versions = "!=3.0.*,!=3.1.*,!=3.2.*,>=2.7"
+groups = ["main"]
+files = [
+    {file = "python-dateutil-2.9.0.tar.gz", hash = "sha256:78e73e19c63f5b20ffa567001531680d939dc042bf7850431877645523c66709"},
+    {file = "python_dateutil-2.9.0-py2.py3-none-any.whl", hash = "sha256:cbf2f1da5e6083ac2fbfd4da39a25f34312230110440f424a14c7558bb85d82e"},
+]
+
+[package.dependencies]
+six = ">=1.5"
+
+[[package]]
 name = "python-dotenv"
 version = "1.1.0"
 description = "Read key-value pairs from a .env file and set them as environment variables"
@@ -1563,5 +1578,5 @@ type = ["pytest-mypy"]
 
 [metadata]
 lock-version = "2.1"
-python-versions = "^3.13.0"
-content-hash = "6b4e09eb8f08e62bd805cc3e441305a309d9b1149a2d9eccdc885b51d41bad9a"
+python-versions = ">=3.13,<4"
+content-hash = "b58c5c7bfdba33cec621a04c5c9dde2e8550bb17d07630ea575c084be49c8aed"
