@@ -14,6 +14,7 @@
 """This module is a wrapper for Document Record Service."""
 
 from typing import Optional
+from datetime import datetime, timezone
 import requests
 from flask import current_app
 from flask_babel import _
@@ -123,6 +124,11 @@ class DocumentRecordService:
             consumer_document_id: str = ''
         ):
         url = f'{self.doc_api_url}/documents/{document_class}/{document_type}?consumerIdentifier={business_id}&consumerReferenceId={filing_id}'
+
+        # Add filing date
+        dt = datetime.now(timezone.utc)
+        iso_string = dt.strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] + 'Z'
+        url = f'{url}&consumerFilingDate={iso_string}'
 
         if consumer_document_id:
             url = f'{url}&consumerDocumentId={consumer_document_id}'

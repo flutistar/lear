@@ -431,7 +431,7 @@ async def process_filing(filing_msg: Dict,  # pylint: disable=too-many-branches,
                         document_class = DOCUMENT_TYPES[filing_type]['class']
                         document_type = DOCUMENT_TYPES[filing_type]['type']
                         # Create document record
-                        res = DocumentRecordService.create_document_record(
+                        res = DocumentRecordService().create_document_record(
                             document_class=document_class,
                             document_type=document_type,
                             filing_id=filing_submission.id,
