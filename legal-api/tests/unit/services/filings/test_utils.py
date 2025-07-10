@@ -56,7 +56,7 @@ def _upload_file(page_size, invalid, document_class=None, document_type=None):
         with open(file_path, "rb") as data_file:
                 raw_data = data_file.read()
                 data_file.close()
-        response = DocumentRecordService.upload_document(
+        response = DocumentRecordService().post_document(
             document_class, 
             document_type, 
             raw_data

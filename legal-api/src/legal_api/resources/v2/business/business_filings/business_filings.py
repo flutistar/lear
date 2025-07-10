@@ -58,7 +58,6 @@ from legal_api.services import (
     SYSTEM_ROLE,
     MinioService,
     RegistrationBootstrapService,
-    DocumentRecordService,
     authorized,
     flags,
     namex,
@@ -70,6 +69,7 @@ from legal_api.services.utils import get_str
 from legal_api.utils import datetime
 from legal_api.utils.auth import jwt
 from legal_api.utils.legislation_datetime import LegislationDatetime
+from document_record_service import DocumentRecordService
 
 from ..bp import bp
 # noqa: I003; the multiple route decorators cause an erroneous error in line space counting
@@ -1089,21 +1089,21 @@ class ListFilingResource():  # pylint: disable=too-many-public-methods
                      .get('filing', {})
                      .get('alteration', {}))):
             if rules_file_key := cooperative.get('rulesFileKey', None):
-                DocumentRecordService.delete_document(rules_file_key)
+                DocumentRecordService().delete_document(rules_file_key)
             if memorandum_file_key := cooperative.get('memorandumFileKey', None):
-                DocumentRecordService.delete_document(memorandum_file_key)
+                DocumentRecordService().delete_document(memorandum_file_key)
         elif filing_type == Filing.FILINGS['dissolution'].get('name') \
                 and (affidavit_file_key := filing_json
                      .get('filing', {})
                      .get('dissolution', {})
                      .get('affidavitFileKey', None)):
-            DocumentRecordService.delete_document(affidavit_file_key)
+            DocumentRecordService().delete_document(affidavit_file_key)
         elif filing_type == Filing.FILINGS['courtOrder'].get('name') \
                 and (file_key := filing_json
                      .get('filing', {})
                      .get('courtOrder', {})
                      .get('fileKey', None)):
-            DocumentRecordService.delete_document(file_key)
+            DocumentRecordService().delete_document(file_key)
         elif filing_type == Filing.FILINGS['continuationIn'].get('name'):
             ListFilingResource.delete_continuation_in_files(filing_json)
 
@@ -1115,7 +1115,7 @@ class ListFilingResource():  # pylint: disable=too-many-public-methods
         # Delete affidavit file
         if affidavit_file_key := continuation_in.get('foreignJurisdiction', {}).get('affidavitFileKey', None):
             if flags.is_on('enable-document-records'):
-                DocumentRecordService.delete_document(affidavit_file_key)
+                DocumentRecordService().delete_document(affidavit_file_key)
             else:
                 MinioService.delete_file(affidavit_file_key)
 
@@ -1124,7 +1124,7 @@ class ListFilingResource():  # pylint: disable=too-many-public-methods
         for file in authorization_files:
             if auth_file_key := file.get('fileKey', None):
                 if flags.is_on('enable-document-records'):
-                    DocumentRecordService.delete_document(auth_file_key)
+                    DocumentRecordService().delete_document(auth_file_key)
                 else:
                     MinioService.delete_file(auth_file_key)
 

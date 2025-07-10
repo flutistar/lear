@@ -124,7 +124,7 @@ def _update_cooperative(dissolution_filing: Dict, business: Business, filing: Fi
     # create certified copy for affidavit document
     affidavit_file_key = dissolution_filing.get('affidavitFileKey')
     if flags.is_on('enable-document-records'):
-        affidavit_file = DocumentRecordService.download_document(
+        affidavit_file = DocumentRecordService().download_document(
             DocumentClasses.COOP.value, 
             affidavit_file_key
         )

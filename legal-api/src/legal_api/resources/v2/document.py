@@ -16,14 +16,17 @@
 import re
 from http import HTTPStatus
 
-from flask import Blueprint, current_app, jsonify
+from flask import Blueprint, current_app, jsonify, request
 from flask_cors import cross_origin
 
+from document_record_service.document_service import DocumentRecordService
+from document_record_service.utils import RequestInfo as DrsRequestInfo, get_request_info
 from legal_api.models import Document, Filing
 from legal_api.services.minio import MinioService
-from legal_api.services.document_record import DocumentRecordService
+
 from legal_api.utils.auth import jwt
 
+from legal_api.services.filings.validations.common_validations import validate_doc_class_and_type
 
 bp = Blueprint('DOCUMENTS2', __name__, url_prefix='/api/v2/documents')
 
@@ -52,7 +55,11 @@ def delete_minio_document(document_key):
     """Delete Minio document based on the provided document key and if it is a draft filing."""
     try:
         if is_draft_filing(document_key):
-            MinioService.delete_file(document_key)
+            drs_id_pattern = r"^DS\d{10}$"
+            if re.match(drs_id_pattern, document_key):
+                DocumentRecordService().delete_document(document_key), HTTPStatus.OK
+            else:
+                MinioService.delete_file(document_key)
             return jsonify({'message': f'File {document_key} deleted successfully.'}), HTTPStatus.OK
         return jsonify({'message': 'Filing is not a draft.'}), HTTPStatus.FORBIDDEN
     except Exception as e:
@@ -85,36 +92,50 @@ def get_minio_document(document_key: str):
 @jwt.requires_auth
 def upload_document(document_class: str, document_type: str):
     """Upload document file to Document Record Service."""
+    document = request.get_data()
+    if msgs := validate_doc_class_and_type(document_class, document_type):
+        return jsonify(message=msgs), HTTPStatus.BAD_REQUEST
 
-    return DocumentRecordService.upload_document(document_class, document_type), HTTPStatus.OK
+    request_info: DrsRequestInfo = DrsRequestInfo(
+        document_class=document_class,
+        document_type=document_type
+    )
+    request_info = get_request_info(request, request_info)
 
-@bp.route('/drs/<string:document_service_id>', methods=['DELETE'])
-@cross_origin(origin='*')
-@jwt.requires_auth
-def delete_document(document_service_id: str):
-    """Delete document file from Document Record Service."""
 
-    return DocumentRecordService.delete_document(document_service_id), HTTPStatus.OK
+    return DocumentRecordService().post_class_document(request_info, document), HTTPStatus.OK
 
-@bp.route('/drs/<string:document_class>/<string:document_key>', methods=['GET'])
+@bp.route('/<string:document_class>/<string:document_service_id>', methods=['GET'])
 @cross_origin(origins='*')
 @jwt.requires_auth
-def get_document(document_class: str, document_key: str):
+def get_document(document_class: str, document_service_id: str):
     """Get document file from Minio or Document Record Service."""
     drs_id_pattern = r"^DS\d{10}$"
 
     try:
-        if re.match(drs_id_pattern, document_key):
-            return DocumentRecordService.get_document(document_class, document_key), HTTPStatus.OK
+        if re.match(drs_id_pattern, document_service_id):
+            response = DocumentRecordService().get_document(
+                DrsRequestInfo(
+                    document_class=document_class,
+                    document_service_id=document_service_id
+                )
+            )
+
+            if not isinstance(response, list):
+                return jsonify(
+                    message=f'Error getting file {document_service_id}.'
+                ), HTTPStatus.BAD_REQUEST
+            
+            return response[0], HTTPStatus.OK
         else:
-            response = MinioService.get_file(document_key)
+            response = MinioService.get_file(document_service_id)
             return current_app.response_class(
                     response=response.data,
                     status=response.status,
                     mimetype='application/pdf'
                 )
     except Exception as e:
-        current_app.logger.error(f'Error getting file {document_key}: {e}')
+        current_app.logger.error(f'Error getting file {document_service_id}: {e}')
         return jsonify(
-            message=f'Error getting file {document_key}.'
+            message=f'Error getting file {document_service_id}.'
         ), HTTPStatus.INTERNAL_SERVER_ERROR

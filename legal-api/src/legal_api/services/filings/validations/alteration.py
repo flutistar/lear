@@ -21,7 +21,7 @@ from legal_api.core.filing import Filing
 from legal_api.errors import Error
 from legal_api.models import Business
 from legal_api.services.utils import get_bool, get_str
-from legal_api.constants import DocumentClasses
+from document_record_service import DocumentClasses
 
 from .common_validations import (
     validate_court_order,

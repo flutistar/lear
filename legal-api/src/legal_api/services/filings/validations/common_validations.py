@@ -22,9 +22,15 @@ import PyPDF2
 from flask import current_app
 from flask_babel import _
 
+from document_record_service import (
+    DocumentRecordService,
+    DocumentClasses,
+    DocumentTypes
+)
+from document_record_service.utils import RequestInfo as DrsRequestInfo
 from legal_api.errors import Error
 from legal_api.models import Business
-from legal_api.services import MinioService, flags, namex, DocumentRecordService
+from legal_api.services import MinioService, flags, namex
 from legal_api.services.utils import get_str
 from legal_api.utils.datetime import datetime as dt
 
@@ -179,7 +185,7 @@ def validate_pdf(file_key: str, file_key_path: str, verify_paper_size: bool = Tr
     try:
         file = None
         if bool(re.match(DRS_ID_PATTERN, file_key)): # Check if file_key is matched with document service ID pattern
-            file = DocumentRecordService.download_document(document_class, file_key)
+            file = DocumentRecordService().download_document(document_class, file_key)
             open_pdf_file = io.BytesIO(file)
             file_size = len(file)
         else:
@@ -343,11 +349,31 @@ def validate_foreign_jurisdiction(foreign_jurisdiction: dict,
 
     return msg
 
-def validate_file_on_drs(document_class: str, document_service_id: str, path) -> bool:
+def validate_file_on_drs(document_class: str, document_service_id: str, path) -> list:
     """Validate file existence on DRS"""
     msg = []
-    doc = DocumentRecordService.get_document(document_class, document_service_id)
-    if not bool(doc.get("documentURL")):
-        msg.append({'error': 'File does not exist on Document Record Service', 'path': path})
+    doc = DocumentRecordService().get_document(
+        request_info=DrsRequestInfo(
+            document_class=document_class,
+            document_service_id=document_service_id
+        )
+    )
+
+    if not (isinstance(doc, list) and doc and doc[0].get("documentURL")):
+        msg.append({
+            'error': 'File does not exist on Document Record Service',
+            'path': path
+        })
 
     return msg
+
+def validate_doc_class_and_type(document_class: str, document_type: str) -> list:
+    """Validate post document request for DRS"""
+    msg = []
+    if not document_class in DocumentClasses._value2member_map_:
+        msg.append('Document class is invalid.')
+    if not document_type in DocumentTypes._value2member_map_:
+        msg.append('Document type is invalid')
+
+    return msg
+    

@@ -41,7 +41,6 @@ from legal_api.services import (
     DocumentMetaService,
     MinioService,
     RegistrationBootstrapService,
-    DocumentRecordService,
     authorized,
     namex
 )
@@ -53,6 +52,7 @@ from legal_api.utils import datetime
 from legal_api.utils.auth import jwt
 from legal_api.utils.legislation_datetime import LegislationDatetime
 from legal_api.utils.util import build_schema_error_response, cors_preflight
+from document_record_service import DocumentRecordService
 
 from .api_namespace import API
 # noqa: I003; the multiple route decorators cause an erroneous error in line space counting
@@ -275,12 +275,12 @@ class ListFilingResource(Resource):
                      .get('alteration', {}))):
             if rules_file_key := cooperative.get('rulesFileKey', None):
                 if re.match(drs_id_pattern, rules_file_key):
-                    DocumentRecordService.delete_document(rules_file_key)
+                    DocumentRecordService().delete_document(rules_file_key)
                 else:
                     MinioService.delete_file(rules_file_key)
             if memorandum_file_key := cooperative.get('memorandumFileKey', None):
                 if re.match(drs_id_pattern, memorandum_file_key):
-                    DocumentRecordService.delete_document(memorandum_file_key)
+                    DocumentRecordService().delete_document(memorandum_file_key)
                 else:
                     MinioService.delete_file(memorandum_file_key)
         elif filing.filing_type == Filing.FILINGS['dissolution'].get('name') \
@@ -289,7 +289,7 @@ class ListFilingResource(Resource):
                      .get('dissolution', {})
                      .get('affidavitFileKey', None)):
             if re.match(drs_id_pattern, affidavit_file_key):
-                DocumentRecordService.delete_document(affidavit_file_key)
+                DocumentRecordService().delete_document(affidavit_file_key)
             else:
                 MinioService.delete_file(affidavit_file_key)
         elif filing.filing_type == Filing.FILINGS['courtOrder'].get('name') \
@@ -298,7 +298,7 @@ class ListFilingResource(Resource):
                      .get('courtOrder', {})
                      .get('fileKey', None)):
             if re.match(drs_id_pattern, file_key):
-                DocumentRecordService.delete_document(file_key)
+                DocumentRecordService().delete_document(file_key)
             else:
                 MinioService.delete_file(file_key)
 

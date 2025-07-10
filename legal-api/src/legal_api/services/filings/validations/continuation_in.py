@@ -35,7 +35,7 @@ from legal_api.services.filings.validations.incorporation_application import (
 )
 from legal_api.services.utils import get_bool, get_str
 from legal_api.utils.datetime import datetime as dt
-from legal_api.constants import DocumentClasses
+from document_record_service import DocumentClasses
 
 
 def validate(filing_json: dict) -> Optional[Error]:  # pylint: disable=too-many-branches;

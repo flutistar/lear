@@ -17,7 +17,7 @@ from typing import Dict
 
 from entity_queue_common.service_utils import QueueException
 from legal_api.models import Business, Document, DocumentType, Filing, Jurisdiction
-from legal_api.services import DocumentRecordService, Flags
+from legal_api.services import Flags
 from legal_api.utils.legislation_datetime import LegislationDatetime
 
 from entity_filer.filing_meta import FilingMeta
@@ -168,6 +168,5 @@ def process(business: Business,  # pylint: disable=too-many-branches,too-many-lo
         raise QueueException(
             f'continuationIn {filing_rec.id}, Unable to update business identifier on Document Record Service.'
             )
-    # Update business identifier on Document Record Service
-    DocumentRecordService.update_business_identifier(business.identifier, files[0].get('fileKey'))
+
     return business, filing_rec, filing_meta

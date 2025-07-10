@@ -17,9 +17,14 @@ from contextlib import suppress
 from enum import Enum, auto
 from typing import Final, MutableMapping, Optional
 
+from document_record_service import (
+    DocumentRecordService,
+    RequestInfo as DrsRequestInfo,
+    DOCUMENT_TYPES
+)
 from legal_api.models import Business
 from legal_api.models import Filing as FilingStorage
-from legal_api.services import VersionedBusinessDetailsService as VersionService  # noqa: I005
+from legal_api.services import VersionedBusinessDetailsService as VersionService
 
 
 class AutoName(str, Enum):
@@ -918,6 +923,26 @@ class FilingMeta:  # pylint: disable=too-few-public-methods
                         'url': f'{url_prefix}/{file_key}'
                     })
         return outputs
+    
+    @staticmethod
+    def get_scanned_documents(filing):
+        """Get scanned documents from DRS"""
+        # Get business identifier
+        if document_id := filing.filing_json['filing']['header'].get('documentIdState', {}).get('consumerDocumentId', ''):
+            if doc_type := DOCUMENT_TYPES.get(filing.filing_type, {}):
+                document_class = doc_type['class']
+            else:
+                document_class = DOCUMENT_TYPES['systemIsTheRecord']['class']
+            response = DocumentRecordService().get_document(
+                request_info=DrsRequestInfo(
+                    document_class=document_class,
+                    consumer_doc_id=document_id
+            ))
+            if isinstance(response, list) and response:
+                scanning_info = response[0].get('scanningInformation', {})
+                return scanning_info or {}
+
+            return {}
 
     @staticmethod
     def get_display_name(legal_type: str, filing_type: str, filing_sub_type: str = None) -> str:

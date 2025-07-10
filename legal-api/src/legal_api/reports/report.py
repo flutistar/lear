@@ -13,6 +13,7 @@ import base64
 import copy
 import json
 import os
+import re
 from contextlib import suppress
 from datetime import datetime
 from http import HTTPStatus
@@ -47,7 +48,7 @@ from legal_api.services import (
 from legal_api.utils.auth import jwt
 from legal_api.utils.formatting import float_to_str
 from legal_api.utils.legislation_datetime import LegislationDatetime
-from legal_api.constants import DocumentClasses
+from document_record_service import DocumentClasses
 
 
 OUTPUT_DATE_FORMAT: Final = '%B %-d, %Y'
@@ -72,13 +73,15 @@ class Report:  # pylint: disable=too-few-public-methods, too-many-lines
         return self._get_report()
 
     def _get_static_report(self):
-        
+        DRS_ID_PATTERN = r"^DS\d{10,}$"
+
         document_type = ReportMeta.static_reports[self._report_key]['documentType']
-        document_class = ReportMeta.static_reports[self._report_key]['documentType']
+        document_class = ReportMeta.static_reports[self._report_key]['documentClass']
         
         document: Document = self._filing.documents.filter(Document.type == document_type).first()
-        if(flags.is_on('enable-document-records')):
-            response = DocumentRecordService.download_document(
+        # Check if DRS ff is on and the doc is stored in DRS.
+        if flags.is_on('enable-document-records') and bool(re.match(DRS_ID_PATTERN, document.file_key)):
+            response = DocumentRecordService().download_document(
                 document_class,
                 document.file_key
             )

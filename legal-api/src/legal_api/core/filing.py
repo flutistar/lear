@@ -442,6 +442,10 @@ class Filing:  # pylint: disable=too-many-public-methods
             if filing.court_order_file_number or filing.order_details:
                 Filing._add_ledger_order(filing, ledger_filing)
 
+            # Get DRS Document Id
+            if document_state := filing.filing_json['filing']['header'].get('documentIdState', {}):
+                ledger_filing['consumerDocumentId'] = document_state["consumerDocumentId"]
+
             ledger.append(ledger_filing)
 
         return ledger
@@ -607,6 +611,10 @@ class Filing:  # pylint: disable=too-many-public-methods
                 if has_roles(jwt, [UserRoles.staff]):
                     if static_docs := FilingMeta.get_static_documents(filing.storage, f'{base_url}{doc_url}/static'):
                         documents['documents']['staticDocuments'] = static_docs
+                    # Attach scanning info if exists
+                    # TODO Make sure scanning document link is same as document link, pass url_prefix
+                    if scanning_info := FilingMeta.get_scanned_documents(filing.storage):
+                        documents['documents']['scanningInformation'] = scanning_info
 
         if user_is_ca:
             del documents['documents']['receipt']

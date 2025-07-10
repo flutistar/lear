@@ -422,34 +422,68 @@ async def process_filing(filing_msg: Dict,  # pylint: disable=too-many-branches,
             filing_submission._meta_data = json.loads(  # pylint: disable=W0212
                 json.dumps(filing_meta.asjson, default=json_serial)
             )
-            if flags.is_on('enable-document-records'):
+
+            if flags.is_on('enable-document-records') and filing_submission.submitter_roles == 'staff':
                 document_id_state = filing_submission.filing_json['filing']['header']['documentIdState']
                 filing_type = filing_submission.filing_json['filing']['header']['name']
+                temp_reg = filing_submission.temp_reg
+                if filing_type in ['incorporationApplication', 'continuationIn']:
+                    # Get existing document on DRS
 
-                if filing_type and document_id_state['valid']:
-                    try:
-                        document_class = DOCUMENT_TYPES[filing_type]['class']
-                        document_type = DOCUMENT_TYPES[filing_type]['type']
-                        # Create document record
-                        res = DocumentRecordService().create_document_record(
-                            document_class=document_class,
-                            document_type=document_type,
-                            filing_id=filing_submission.id,
-                            business_id=filing_submission.filing_json['filing']['business']['identifier'],
-                            consumer_document_id=document_id_state['consumerDocumentId']
+                    doc_list = DocumentRecordService().get_document(document_class =DOCUMENT_TYPES[filing_type]['class'], temp_reg=temp_reg)
+                    if not isinstance(doc_list, list):
+                        current_app.logger.error(
+                            f"No associated documents found for temporary registration ID: {temp_reg}"
                         )
-                        response_json = res.json()
-                        if document_id_state['consumerDocumentId'] == '' and res.status_code == HTTPStatus.CREATED:
-                            # Update consumerDocumentId
+
+                    else:
+                        # Update missing consumer document id
+                        if document_id_state['valid'] and document_id_state['consumerDocumentId'] == '':
+
                             copied_json = copy.deepcopy(filing_submission.filing_json)
-                            copied_json['filing']['header']['documentIdState']['consumerDocumentId'] = response_json['consumerDocumentId']
+                            copied_json['filing']['header']['documentIdState']['consumerDocumentId'] = doc_list[0]['consumerDocumentId']
                             filing_submission._filing_json = copied_json
-                        if res.status_code == 400:
-                            current_app.logger.error(
-                                f"Document Record Creation Error: {filing_submission.id}, {response_json['rootCause']}", exc_info=True)
-                            print(f"""Document Record Creation Error: {document_class}, {document_type}, {filing_submission.id}, {response_json['rootCause']}""")
-                    except Exception as error:
-                        current_app.logger.error(f"Document Record Creation Erro: {error}")
+                        # Update replace temp id with business id:
+                        for associated_document in doc_list:
+                            doc_service_id = associated_document['documentServiceId']
+
+                            DocumentRecordService().update_document_info(doc_service_id, {
+                                'consumerIdentifier': filing_submission.filing_json['filing']['business']['identifier'],
+                                'consumerReferenceId': str(filing_submission.id)
+                            })
+                else:
+                    if filing_type and document_id_state['valid']:
+                        try:
+                            
+                            if DOCUMENT_TYPES.get(filing_type, ''):
+                                document_class = DOCUMENT_TYPES[filing_type]['class']
+                                document_type = DOCUMENT_TYPES[filing_type]['type']
+                            else:
+                                document_class = DOCUMENT_TYPES['systemIsTheRecord']['class']
+                                document_type = DOCUMENT_TYPES['systemIsTheRecord']['type']
+
+                            # Create document record
+                            res = DocumentRecordService().create_document_record(
+                                document_class=document_class,
+                                document_type=document_type,
+                                filing_id=filing_submission.id,
+                                business_id=filing_submission.filing_json['filing']['business']['identifier'],
+                                consumer_document_id=document_id_state['consumerDocumentId']
+                            )
+                            response_json = res.json()
+
+                            if document_id_state['consumerDocumentId'] == '' and res.status_code == HTTPStatus.CREATED:
+                                # Update consumerDocumentId
+                                copied_json = copy.deepcopy(filing_submission.filing_json)
+                                copied_json['filing']['header']['documentIdState']['consumerDocumentId'] = response_json['consumerDocumentId']
+                                filing_submission._filing_json = copied_json
+                            if res.status_code == 400:
+                                current_app.logger.error(
+                                    f"Document Record Creation Error: {filing_submission.id}, {response_json['rootCause']}", exc_info=True)
+
+                        except Exception as error:
+                            current_app.logger.error(f"Document Record Creation Error: {error}")
+
 
             db.session.add(filing_submission)
             db.session.commit()
@@ -545,20 +579,23 @@ async def process_filing(filing_msg: Dict,  # pylint: disable=too-many-branches,
 
 async def cb_subscription_handler(msg: nats.aio.client.Msg):
     """Use Callback to process Queue Msg objects."""
-    try:
-        current_app.logger.info('Received raw message seq:%s, data=  %s', msg.sequence, msg.data.decode())
-        filing_msg = json.loads(msg.data.decode('utf-8'))
-        current_app.logger.debug('Extracted filing msg: %s', filing_msg)
-        await process_filing(filing_msg, FLASK_APP)
-    except OperationalError as err:
-        current_app.logger.error('Queue Blocked - Database Issue: %s', json.dumps(filing_msg), exc_info=True)
-        raise err  # We don't want to handle the error, as a DB down would drain the queue
-    except FilingException as err:
-        current_app.logger.error('Queue Error - cannot find filing: %s'
-                                 '\n\nThis message has been put back on the queue for reprocessing.',
-                                 json.dumps(filing_msg), exc_info=True)
-        raise err  # we don't want to handle the error, so that the message gets put back on the queue
-    except (QueueException, Exception):  # pylint: disable=broad-except
-        # Catch Exception so that any error is still caught and the message is removed from the queue
-        capture_message('Queue Error:' + json.dumps(filing_msg), level='error')
-        current_app.logger.error('Queue Error: %s', json.dumps(filing_msg), exc_info=True)
+    # try:
+    current_app.logger.info('Received raw message seq:%s, data=  %s', msg.sequence, msg.data.decode())
+    filing_msg = json.loads(msg.data.decode('utf-8'))
+    current_app.logger.debug('Extracted filing msg: %s', filing_msg)
+    await process_filing(filing_msg, FLASK_APP)
+    # except OperationalError as err:
+    #     print(err, "operation")
+    #     current_app.logger.error('Queue Blocked - Database Issue: %s', json.dumps(filing_msg), exc_info=True)
+    #     raise err  # We don't want to handle the error, as a DB down would drain the queue
+    # except FilingException as err:
+    #     print(err, "filing")
+    #     current_app.logger.error('Queue Error - cannot find filing: %s'
+    #                              '\n\nThis message has been put back on the queue for reprocessing.',
+    #                              json.dumps(filing_msg), exc_info=True)
+    #     raise err  # we don't want to handle the error, so that the message gets put back on the queue
+    # except (QueueException, Exception):  # pylint: disable=broad-except
+    #     print(err, "exceptio")
+    #     # Catch Exception so that any error is still caught and the message is removed from the queue
+    #     capture_message('Queue Error:' + json.dumps(filing_msg), level='error')
+    #     current_app.logger.error('Queue Error: %s', json.dumps(filing_msg), exc_info=True)

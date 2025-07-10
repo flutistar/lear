@@ -36,20 +36,27 @@ def _update_cooperative(incorp_filing: Dict, business: Business, filing: Filing)
     if cooperative_obj:
         # create certified copy for rules document
         rules_file_key = cooperative_obj.get('rulesFileKey')
+        registrar_stamp_data = RegistrarStampData(business.founding_date, business.identifier)
         if flags.is_on('enable-document-records'):
-            rules_file = DocumentRecordService.download_document(
+            rules_file = DocumentRecordService().download_document(
                 DocumentClasses.COOP.value, 
                 rules_file_key
             )
+            file_name = cooperative_obj.get('rulesFileName')
+            replace_file_with_certified_copy(
+                rules_file,
+                rules_file_key,
+                registrar_stamp_data,
+                file_name
+            )
         else:
             rules_file = MinioService.get_file(rules_file_key)
-        registrar_stamp_data = RegistrarStampData(business.founding_date, business.identifier)
-        replace_file_with_certified_copy(
-            rules_file.data,
-            rules_file_key,
-            registrar_stamp_data,
-            rules_file.name
-        )
+            replace_file_with_certified_copy(
+                rules_file.data,
+                rules_file_key,
+                registrar_stamp_data,
+                rules_file.name
+            )
 
         business.association_type = cooperative_obj.get('cooperativeAssociationType')
         document = Document()
@@ -61,20 +68,28 @@ def _update_cooperative(incorp_filing: Dict, business: Business, filing: Filing)
 
         # create certified copy for memorandum document
         memorandum_file_key = cooperative_obj.get('memorandumFileKey')
+        registrar_stamp_data = RegistrarStampData(business.founding_date, business.identifier)
         if flags.is_on('enable-document-records'):
-            memorandum_file = DocumentRecordService.download_document(
+            memorandum_file = DocumentRecordService().download_document(
                 DocumentClasses.COOP.value, 
-                memorandum_file_key
+                document_service_id=memorandum_file_key
+            )
+            file_name = cooperative_obj.get('memorandumFileName')
+            print(file_name, "memorundum file")
+            replace_file_with_certified_copy(
+                memorandum_file,
+                memorandum_file_key,
+                registrar_stamp_data,
+                file_name
             )
         else:
             memorandum_file = MinioService.get_file(memorandum_file_key)
-        registrar_stamp_data = RegistrarStampData(business.founding_date, business.identifier)
-        replace_file_with_certified_copy(
-            memorandum_file.data,
-            memorandum_file_key,
-            registrar_stamp_data,
-            memorandum_file.name
-        )
+            replace_file_with_certified_copy(
+                memorandum_file.data,
+                memorandum_file_key,
+                registrar_stamp_data,
+                memorandum_file.name
+            )
 
         document = Document()
         document.type = DocumentType.COOP_MEMORANDUM.value

@@ -23,7 +23,7 @@ from legal_api.errors import Error
 from legal_api.models import Address, Business, PartyRole
 
 from .common_validations import validate_court_order, validate_pdf
-from legal_api.constants import DocumentClasses
+from document_record_service import DocumentClasses
 
 from ...utils import get_str  # noqa: I003; needed as the linter gets confused from the babel override above.
 

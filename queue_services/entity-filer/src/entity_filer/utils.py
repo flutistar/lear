@@ -52,7 +52,8 @@ def replace_file_with_certified_copy(_bytes: bytes, key: str, data: RegistrarSta
     pdf_service = PdfService()
     registrars_stamp = pdf_service.create_registrars_stamp(data)
     certified_copy = pdf_service.stamp_pdf(output_original_pdf, registrars_stamp, only_first_page=True)
-    if(flags.is_on('enable-document-records')):
-        DocumentRecordService.update_document(certified_copy, key, file_name)
+    
+    if flags.is_on('enable-document-records'):
+        DocumentRecordService().update_document(certified_copy, key, file_name)
     else:
         MinioService.put_file(key, certified_copy, certified_copy.getbuffer().nbytes)
