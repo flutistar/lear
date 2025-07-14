@@ -23,12 +23,11 @@ from legal_api.models import BatchProcessing, Business, Document, Filing, db
 from legal_api.models.document import DocumentType
 from legal_api.services.filings.validations.dissolution import DissolutionTypes
 from legal_api.services import Flags
-from legal_api.services.document_record import DocumentRecordService
 from legal_api.services.minio import MinioService
 from legal_api.services.pdf_service import RegistrarStampData
 from legal_api.utils.datetime import datetime
 from legal_api.utils.legislation_datetime import LegislationDatetime
-from legal_api.constants import DocumentClasses
+from document_record_service import DocumentRecordService, DocumentClasses
 
 from entity_filer.filing_meta import FilingMeta
 from entity_filer.filing_processors.filing_components import create_office, filings

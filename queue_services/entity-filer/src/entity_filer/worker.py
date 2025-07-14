@@ -63,7 +63,7 @@ from legal_api.models import Business, Filing, db
 from legal_api.models.db import VersioningProxy, init_db
 from legal_api.services import Flags, DocumentRecordService
 from legal_api.utils.datetime import datetime, timezone
-from legal_api.constants import DOCUMENT_TYPES
+from document_record_service import DOCUMENT_TYPES
 from sentry_sdk import capture_message
 from sqlalchemy.exc import OperationalError
 

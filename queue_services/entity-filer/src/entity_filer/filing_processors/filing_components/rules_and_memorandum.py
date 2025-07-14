@@ -21,9 +21,8 @@ from legal_api.models import Business, Document, Filing
 from legal_api.models.document import DocumentType
 from legal_api.services import Flags
 from legal_api.services.minio import MinioService
-from legal_api.services.document_record import DocumentRecordService
-from legal_api.constants import DocumentClasses
 from legal_api.services.pdf_service import RegistrarStampData
+from document_record_service import DocumentRecordService, DocumentClasses
 
 from entity_filer.utils import replace_file_with_certified_copy
 

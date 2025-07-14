@@ -21,7 +21,7 @@ import os
 import PyPDF2
 from legal_api.services import PdfService, Flags
 from legal_api.services.minio import MinioService
-from legal_api.services.document_record import DocumentRecordService
+from document_record_service import DocumentRecordService
 from legal_api.services.pdf_service import RegistrarStampData
 
 from entity_filer.version import __version__
