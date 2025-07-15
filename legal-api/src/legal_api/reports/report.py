@@ -42,13 +42,12 @@ from legal_api.reports.registrar_meta import RegistrarInfo
 from legal_api.services import (
     MinioService,
     VersionedBusinessDetailsService,
-    DocumentRecordService,
     flags
 )
 from legal_api.utils.auth import jwt
 from legal_api.utils.formatting import float_to_str
 from legal_api.utils.legislation_datetime import LegislationDatetime
-from document_record_service import DocumentClasses
+from document_record_service import DocumentRecordService, DocumentClasses
 
 
 OUTPUT_DATE_FORMAT: Final = '%B %-d, %Y'
