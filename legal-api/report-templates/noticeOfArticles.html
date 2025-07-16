@@ -6,6 +6,9 @@
       <meta charset="UTF-8">
       <meta name="author" content="BC Registries and Online Services">
       [[common/style.html]]
+      {% if enable_sandbox %}
+         [[common/watermark.html]]
+      {% endif %}
    </head>
    <body>
       <div class="header">
@@ -33,7 +36,6 @@
          [[notice-of-articles/directors.html]]
          [[notice-of-articles/restrictions.html]]
          [[common/resolutionDates.html]]
-         [[transition/preExistingCompanyProvisions.html]]
          [[common/shareStructure.html]]
       </div>
    </body>

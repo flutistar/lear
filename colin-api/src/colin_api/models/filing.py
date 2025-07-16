@@ -34,6 +34,7 @@ from colin_api.exceptions import (  # noqa: I001
     UnableToDetermineCorpTypeException,  # noqa: I001
 )  # noqa: I001
 from colin_api.models import (  # noqa: I001
+    Address,  # noqa: I001
     Business,  # noqa: I001
     ContOut,  # noqa: I001
     CorpInvolved,  # noqa: I001
@@ -339,8 +340,15 @@ class Filing:  # pylint: disable=too-many-instance-attributes;
             Business.TypeCodes.COOP.value: 'OTCON'
         },
         'transition': {
-            'type_code_list': ['TRANS'],
-            Business.TypeCodes.BC_COMP.value: 'TRANS'
+            'type_code_list': ['TRANP'],
+            Business.TypeCodes.BC_COMP.value: 'TRANP',
+            Business.TypeCodes.BCOMP.value: 'TRANP',
+            Business.TypeCodes.ULC_COMP.value: 'TRANP',
+            Business.TypeCodes.CCC_COMP.value: 'TRANP',
+            Business.TypeCodes.BCOMP_CONTINUE_IN.value: 'TRANP',
+            Business.TypeCodes.CONTINUE_IN.value: 'TRANP',
+            Business.TypeCodes.ULC_CONTINUE_IN.value: 'TRANP',
+            Business.TypeCodes.CCC_CONTINUE_IN.value: 'TRANP'
         },
         'registrarsNotation': {
             'type_code_list': ['REGSN'],
@@ -665,7 +673,7 @@ class Filing:  # pylint: disable=too-many-instance-attributes;
                     effective_dt=filing.effective_date,
                     filing_date=filing.filing_date[:10]
                 )
-            elif filing_type_code in ['NOCAD', 'TRANS',
+            elif filing_type_code in ['NOCAD', 'TRANP',
                                       'CO_BC', 'CO_DI', 'CO_RR', 'CO_SS', 'CO_LI',
                                       'BEINC', 'ICORP', 'ICORU', 'ICORC',
                                       'AMLRB', 'AMALR', 'AMLRU', 'AMLRC',
@@ -893,6 +901,28 @@ class Filing:  # pylint: disable=too-many-instance-attributes;
                 event_id = event['id']
                 tmp_timestamp = event['date']
         return event_id if event_id else ar_filing_event_info['event_id']
+
+    @classmethod
+    def _create_submitting_party(cls, cursor, filing, corp_num):
+        """Create a submitting party for dissolution filing."""
+        mailing_address = filing.body.get('mailingAddress')
+        mailing_addr_id = None
+        if mailing_address:
+            mailing_addr_id = Address.create_new_address(
+                cursor=cursor, address_info=mailing_address, corp_num=corp_num)
+
+        submitting_party_query = \
+            """
+            insert into submitting_party (event_id, mailing_addr_id, last_nme)
+            values (:event_id, :mailing_addr_id, :last_nme)
+            """
+
+        cursor.execute(
+            submitting_party_query,
+            event_id=filing.event_id,
+            mailing_addr_id=mailing_addr_id,
+            last_nme=filing.get_certified_by()
+        )
 
     # pylint: disable=too-many-branches, too-many-locals, too-many-statements, too-many-nested-blocks;
     @classmethod
@@ -1375,6 +1405,10 @@ class Filing:  # pylint: disable=too-many-instance-attributes;
                                             party=party,
                                             business=business,
                                             event_id=filing.event_id)
+
+            if Filing.is_filing_type_match(filing, 'dissolution', 'voluntary'):
+                cls._create_submitting_party(cursor=cursor, filing=filing, corp_num=corp_num)
+
             # add shares if not coop
             cls._process_share_structure(cursor, filing, corp_num)
             if filing.body.get('nameRequest'):
@@ -1485,6 +1519,14 @@ class Filing:  # pylint: disable=too-many-instance-attributes;
 
             if is_frozen_condition or is_new_or_altered_ben:
                 Business.update_corp_frozen_type(cursor, corp_num, Business.CorpFrozenTypes.COMPANY_FROZEN.value)
+
+            # process transition (post restoration transition in COLIN)
+            if filing.filing_type == 'transition':
+                Business.update_transition_dt(cursor, corp_num, filing.effective_date)
+                Business.update_corp_state(
+                    cursor, filing.event_id, corp_num,
+                    Business.CorpStateTypes.ACTIVE.value
+                )
 
             return filing.event_id
 
@@ -1799,7 +1841,8 @@ class Filing:  # pylint: disable=too-many-instance-attributes;
                 office_type=office_type
             )
             # create new ledger text for address change
-            if filing.filing_type not in ['amalgamationApplication', 'continuationIn', 'incorporationApplication']:
+            if filing.filing_type not in ['amalgamationApplication', 'continuationIn', 'incorporationApplication',
+                                          'transition']:
                 office_desc = (office_type.replace('O', ' O')).title()
                 if text:
                     text = f'{text} Change to the {office_desc}.'

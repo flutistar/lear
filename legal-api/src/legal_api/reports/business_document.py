@@ -22,10 +22,11 @@ import requests
 from flask import current_app, jsonify
 
 from legal_api.models import Alias, AmalgamatingBusiness, Amalgamation, Business, CorpType, Filing, Jurisdiction
+from legal_api.reports.document_service import DocumentService
 from legal_api.reports.registrar_meta import RegistrarInfo
 from legal_api.resources.v2.business import get_addresses, get_directors
 from legal_api.resources.v2.business.business_parties import get_parties
-from legal_api.services import VersionedBusinessDetailsService
+from legal_api.services import VersionedBusinessDetailsService, flags
 from legal_api.utils.auth import jwt
 from legal_api.utils.legislation_datetime import LegislationDatetime
 
@@ -43,6 +44,7 @@ class BusinessDocument:
         self._report_date_time = LegislationDatetime.now()
         self._epoch_filing_date = None
         self._tombstone_filing_date = None
+        self._document_service = DocumentService()
 
     def get_pdf(self):
         """Render the business document pdf response."""
@@ -95,6 +97,7 @@ class BusinessDocument:
             'business-summary/amalgamationOut',
             'business-summary/recordKeeper',
             'business-summary/parties',
+            'business-summary/receiverInformation',
             'common/addresses',
             'common/businessDetails',
             'common/footerMOCS',
@@ -106,7 +109,9 @@ class BusinessDocument:
             'common/certificateRegistrarSignature',
             'common/certificateSeal',
             'common/certificateStyle',
+            'common/certificateWatermark',
             'common/courtOrder',
+            'common/watermark',
             'footer',
             'logo',
             'macros',
@@ -125,6 +130,9 @@ class BusinessDocument:
             # get document data
             business_json['reportType'] = self._document_key
             business_json['business'] = self._business.json()
+
+            # set FFs config
+            business_json['enable_sandbox'] = flags.is_on('enable-sandbox')
 
             # legal name easy fix
             if not get_json:
@@ -177,6 +185,7 @@ class BusinessDocument:
                 # set party groups
                 self._set_directors(business_json)
                 self._set_record_keepers(business_json)
+                self._set_receivers(business_json)
 
         except Exception as e:
             current_app.logger.error(e)
@@ -315,6 +324,20 @@ class BusinessDocument:
             if party.get('deliveryAddress'):
                 party['deliveryAddress'] = BusinessDocument._format_address(party['deliveryAddress'])
         business['parties'] = party_json
+
+    def _set_receivers(self, business: dict):
+        """Set the receivers of the business (all parties)."""
+        receiver_json = [party_role.json for party_role in self._business.party_roles.all()
+                         if party_role.role.lower() == 'receiver' and party_role.cessation_date is None]
+        for receiver in receiver_json:
+            if receiver.get('mailingAddress'):
+                receiver['mailingAddress'] = BusinessDocument._format_address(receiver['mailingAddress'])
+            if receiver.get('deliveryAddress'):
+                receiver['deliveryAddress'] = BusinessDocument._format_address(receiver['deliveryAddress'])
+            appointment_date = LegislationDatetime.as_legislation_timezone_from_date_str(
+                        receiver['appointmentDate'])
+            receiver['appointmentDate'] = appointment_date.strftime(OUTPUT_DATE_FORMAT)
+        business['receivers'] = receiver_json
 
     def _set_name_translations(self, business: dict):
         """Set the aliases."""
@@ -576,7 +599,7 @@ class BusinessDocument:
         liquidation = Filing.get_filings_by_types(self._business.id, ['voluntaryLiquidation'])
         if liquidation:
             liquidation_info['filingDateTime'] = liquidation[0].filing_date.isoformat()
-            business['business']['state'] = Business.State.LIQUIDATION.name
+            business['business']['state'] = 'LIQUIDATION'
             if self._epoch_filing_date and liquidation[0].effective_date < self._epoch_filing_date:
                 liquidation_info['custodian'] = 'Not Available'
                 records_office_info = {}

@@ -140,15 +140,19 @@ def post_businesses():
 
     try:
         business_name = json_input['filing'][filing_type]['nameRequest']['nrNumber']
+        nr_number = json_input['filing'][filing_type]['nameRequest']['nrNumber']
     except KeyError:
         business_name = bootstrap.identifier
+        nr_number = None
 
     legal_type = json_input['filing'][filing_type]['nameRequest']['legalType']
     corp_type_code = Filing.FILINGS[filing_type]['temporaryCorpTypeCode']
-    rv = RegistrationBootstrapService.register_bootstrap(bootstrap,
-                                                         business_name,
+    rv = RegistrationBootstrapService.register_bootstrap(bootstrap=bootstrap,
+                                                         business_name=business_name,
+                                                         nr_number=nr_number,
                                                          corp_type_code=corp_type_code,
-                                                         corp_sub_type_code=legal_type)
+                                                         corp_sub_type_code=legal_type,
+                                                         )
     if not isinstance(rv, HTTPStatus):
         with suppress(Exception):
             bootstrap.delete()
@@ -177,20 +181,41 @@ def search_businesses():
             else:
                 business_identifiers.append(identifier)
         search_filters = AffiliationSearchDetails.from_request_args(json_input)
-        bus_results = BusinessSearchService.get_search_filtered_businesses_results(
+
+        bus_results, bus_hasmore = BusinessSearchService.get_search_filtered_businesses_results(
             business_json=json_input,
             identifiers=business_identifiers,
-            search_filters=search_filters)
-        draft_results = BusinessSearchService.get_search_filtered_filings_results(
+            search_filters=search_filters) or ([], False)
+        draft_results, draft_hasmore = BusinessSearchService.get_search_filtered_filings_results(
             business_json=json_input,
             identifiers=temp_identifiers,
-            search_filters=search_filters)
-
-        return jsonify({'businessEntities': bus_results, 'draftEntities': draft_results}), HTTPStatus.OK
+            search_filters=search_filters) or ([], False)
+        has_more = bus_hasmore or draft_hasmore
+        return jsonify({
+            'businessEntities': bus_results,
+            'draftEntities': draft_results,
+            'hasMore': has_more
+            }), HTTPStatus.OK
     except Exception as err:
         current_app.logger.info(err)
         current_app.logger.error('Error searching over business information for: %s', identifiers)
         return {'error': 'Unable to retrieve businesses.'}, HTTPStatus.INTERNAL_SERVER_ERROR
+
+
+@bp.route('/search/affiliation_mappings', methods=['POST'])
+@cross_origin(origin='*')
+@jwt.requires_roles([SYSTEM_ROLE])
+def get_filing_details():
+    """Return the list of Business filings with name requests. Being called from auth api."""
+    data = request.get_json()
+    identifiers = data.get('identifiers', [])
+    if not identifiers or not isinstance(identifiers, list):
+        return {'message': "Expected a list of 1 or more for '/identifiers'"}, HTTPStatus.BAD_REQUEST
+    results = BusinessSearchService.get_affiliation_mapping_results(identifiers)
+    return jsonify({
+        'count': len(results),
+        'entityDetails': results
+    })
 
 
 @bp.route('/allowable/<string:business_type>/<string:business_state>', methods=['GET'])

@@ -92,6 +92,7 @@ from entity_filer.filing_processors import (
     court_order,
     dissolution,
     incorporation_filing,
+    intent_to_liquidate,
     notice_of_withdrawal,
     put_back_off,
     put_back_on,
@@ -281,6 +282,9 @@ async def process_filing(filing_msg: Dict,  # pylint: disable=too-many-branches,
 
             business = Business.find_by_internal_id(filing_submission.business_id)
 
+            # Updating effective_date before processing the filing
+            filing_submission.set_processed()
+
             filing_meta = FilingMeta(application_date=filing_submission.effective_date,
                                      legal_filings=[item for sublist in
                                                     [list(x.keys()) for x in legal_filings]
@@ -379,6 +383,9 @@ async def process_filing(filing_msg: Dict,  # pylint: disable=too-many-branches,
                 elif filing.get('agmExtension'):
                     agm_extension.process(filing, filing_meta)
 
+                elif filing.get('intentToLiquidate'):
+                    intent_to_liquidate.process(business, filing, filing_submission, filing_meta)
+
                 elif filing.get('noticeOfWithdrawal'):
                     notice_of_withdrawal.process(filing_submission, filing, filing_meta)
 
@@ -399,7 +406,7 @@ async def process_filing(filing_msg: Dict,  # pylint: disable=too-many-branches,
                         flags)
 
                 elif filing.get('transparencyRegister'):
-                    transparency_register.process(business, filing_submission, filing_core_submission.json)
+                    transparency_register.process(business, filing_submission, filing)
 
                 elif filing.get('appointReceiver'):
                     appoint_receiver.process(business, filing, filing_submission, filing_meta)
@@ -411,10 +418,6 @@ async def process_filing(filing_msg: Dict,  # pylint: disable=too-many-branches,
                     special_resolution.process(business, filing, filing_submission)
 
             filing_submission.transaction_id = transaction_id
-
-            business_type = business.legal_type if business \
-                else filing_submission.filing_json.get('filing', {}).get('business', {}).get('legalType')
-            filing_submission.set_processed(business_type)
             if business:
                 business.last_modified = filing_submission.completion_date
                 db.session.add(business)

@@ -1,4 +1,4 @@
-# Copyright © 2019 Province of British Columbia
+# Copyright © 2025 Province of British Columbia
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -11,4 +11,18 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Test Suite for Change of Address validations."""
+
+"""Tests to assure the AuthorizedRole Model.
+
+Test-Suite to ensure that the AuthorizedRole Model is working as expected.
+"""
+from business_model.models import AuthorizedRole
+
+
+def test_role_save(session):
+    """Assert that a Role saves correctly."""
+    role = AuthorizedRole(role_name='test_new_role')
+    role.save()
+    assert role.id
+    assert role.role_name == 'test_new_role'
+

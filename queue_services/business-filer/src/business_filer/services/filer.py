@@ -56,6 +56,7 @@ from business_filer.filing_processors import (
     change_of_address,
     change_of_directors,
     change_of_name,
+    change_of_officers,
     change_of_registration,
     consent_amalgamation_out,
     consent_continuation_out,
@@ -66,6 +67,7 @@ from business_filer.filing_processors import (
     court_order,
     dissolution,
     incorporation_filing,
+    intent_to_liquidate,
     notice_of_withdrawal,
     put_back_off,
     put_back_on,
@@ -122,6 +124,9 @@ def process_filing(filing_message: FilingMessage): # noqa: PLR0915, PLR0912
 
         business = Business.find_by_internal_id(filing_submission.business_id)
 
+        # Updating effective_date before processing the filing
+        filing_submission.set_processed()
+
         filing_meta = FilingMeta(application_date=filing_submission.effective_date,
                                     legal_filings=[item for sublist in
                                                 [list(x.keys()) for x in legal_filings]
@@ -177,6 +182,9 @@ def process_filing(filing_message: FilingMessage): # noqa: PLR0915, PLR0912
                 case "changeOfName":
                     change_of_name.process(business, filing, filing_meta)
 
+                case "changeOfOfficers":
+                    change_of_officers.process(business, filing_submission, filing_meta)
+
                 case "changeOfRegistration":
                     change_of_registration.process(business, filing_submission, filing, filing_meta)
 
@@ -220,6 +228,9 @@ def process_filing(filing_message: FilingMessage): # noqa: PLR0915, PLR0912
                                                     filing_submission,
                                                     filing_meta,
                                                     flags)
+                
+                case "intentToLiquidate":
+                    intent_to_liquidate.process(business, filing, filing_submission, filing_meta)
 
                 case "noticeOfWithdrawal":
                     notice_of_withdrawal.process(filing_submission, filing, filing_meta)
@@ -254,14 +265,11 @@ def process_filing(filing_message: FilingMessage): # noqa: PLR0915, PLR0912
                     filing_submission = transition.process(business, filing_submission, filing, filing_meta)
 
                 case "transparencyRegister":
-                    transparency_register.process(business, filing_submission, filing_submission.json)
+                    transparency_register.process(business, filing_submission, filing)
 
         # Add the current transaction
         filing_submission.transaction_id = transaction_id
 
-        business_type = business.legal_type if business \
-            else filing_submission.filing_json.get("filing", {}).get("business", {}).get("legalType")
-        filing_submission.set_processed(business_type)
         if business:
             business.last_modified = filing_submission.completion_date
             db.session.add(business)

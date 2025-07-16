@@ -657,6 +657,10 @@ def test_get_could_file(session, client, jwt):
             "name": "changeOfDirectors"
         },
         {
+            "displayName": "Officer Change",
+            "name": "changeOfOfficers"
+        },
+        {
             "displayName": "6-Month Consent to Amalgamate Out",
             "name": "consentAmalgamationOut"
         },
@@ -719,6 +723,10 @@ def test_get_could_file(session, client, jwt):
         {
             "displayName": "Notice of Withdrawal",
             "name": "noticeOfWithdrawal"
+        },
+        {
+            "displayName": "Statement of Intent to Liquidate",
+            "name": "intentToLiquidate",
         }
     ]
 

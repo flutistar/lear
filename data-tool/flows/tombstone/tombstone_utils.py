@@ -42,7 +42,8 @@ def format_business_data(data: dict) -> dict:
     last_ar_reminder_year = business_data['last_ar_reminder_year']
 
     # last_ar_reminder_year can be None if send_ar_ind is false or the business is in the 1st financial year
-    if business_data['send_ar_ind'] and last_ar_reminder_year is None:
+    if (business_data['send_ar_ind'] and 
+            (last_ar_reminder_year is None or (last_ar_year and last_ar_reminder_year < last_ar_year))):
         last_ar_reminder_year = last_ar_year
 
     formatted_business = {
@@ -465,7 +466,7 @@ def format_filings_data(data: dict) -> dict:
 
         if (
             raw_filing_type == 'conversion'
-            or raw_filing_subtype == 'involuntary'
+            or raw_filing_subtype in ('involuntary', 'voluntaryLiquidation', 'courtOrderedLiquidation')
             or event_file_type in ['SYSDL_NULL', 'ADCORP_NULL', 'ADFIRM_NULL', 'ADMIN_NULL']
         ):
             hide_in_ledger = True
@@ -498,6 +499,8 @@ def format_filings_data(data: dict) -> dict:
             'hide_in_ledger': hide_in_ledger,
             'status': status,
             'submitter_id': user_id,  # will be updated to real user_id when loading data into db
+            'court_order_file_number' : x['court_order_num'],
+            'court_order_effect_of_order' : 'planOfArrangement' if x['arrangement_ind'] == True else None,
         }
 
         # conversion still need to populate create-new-business info
@@ -991,6 +994,9 @@ def build_filing_json_meta_data(raw_filing_type: str, filing_type: str, filing_s
             **meta_data,
             'withdrawnDate': withdrawn_ts.isoformat()
         }
+
+    if accession_num := data.get('accession_num'):
+        meta_data['accessionNumber'] = accession_num
 
     # TODO: populate meta_data for correction to display correct filing name
 

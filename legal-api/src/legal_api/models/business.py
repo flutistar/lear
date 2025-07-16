@@ -26,7 +26,7 @@ from sql_versioning import Versioned
 from sqlalchemy.exc import OperationalError, ResourceClosedError
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import aliased, backref
-from sqlalchemy.sql import and_, exists, func, not_, text
+from sqlalchemy.sql import and_, exists, func, not_
 
 from legal_api.exceptions import BusinessException
 from legal_api.utils.base import BaseEnum
@@ -63,7 +63,6 @@ class Business(db.Model, Versioned):  # pylint: disable=too-many-instance-attrib
 
         ACTIVE = auto()
         HISTORICAL = auto()
-        LIQUIDATION = auto()
 
     # NB: commented out items that exist in namex but are not yet supported by Lear
     class LegalTypes(str, Enum):
@@ -188,6 +187,7 @@ class Business(db.Model, Versioned):  # pylint: disable=too-many-instance-attrib
     __mapper_args__ = {
         'include_properties': [
             'id',
+            'accession_number',
             'admin_freeze',
             'amalgamation_out_date',
             'association_type',
@@ -198,6 +198,7 @@ class Business(db.Model, Versioned):  # pylint: disable=too-many-instance-attrib
             'foreign_legal_name',
             'founding_date',
             'identifier',
+            'in_liquidation',
             'jurisdiction',
             'last_agm_date',
             'last_ar_date',
@@ -255,10 +256,12 @@ class Business(db.Model, Versioned):  # pylint: disable=too-many-instance-attrib
     state = db.Column('state', db.Enum(State), default=State.ACTIVE.value)
     state_filing_id = db.Column('state_filing_id', db.Integer)
     admin_freeze = db.Column('admin_freeze', db.Boolean, unique=False, default=False)
+    in_liquidation = db.Column('in_liquidation', db.Boolean, unique=False, default=False)
     submitter_userid = db.Column('submitter_userid', db.Integer, db.ForeignKey('users.id'))
     submitter = db.relationship('User', backref=backref('submitter', uselist=False), foreign_keys=[submitter_userid])
     send_ar_ind = db.Column('send_ar_ind', db.Boolean, unique=False, default=True)
     no_dissolution = db.Column('no_dissolution', db.Boolean, unique=False, default=False)
+    accession_number = db.Column('accession_number', db.String(10))
 
     naics_key = db.Column(db.String(50))
     naics_code = db.Column(db.String(10))
@@ -480,15 +483,12 @@ class Business(db.Model, Versioned):  # pylint: disable=too-many-instance-attrib
     @property
     def good_standing(self):
         """Return true if in good standing, otherwise false."""
-        from legal_api.services import flags  # pylint: disable=import-outside-toplevel
-
         # A firm is always in good standing
         if self.is_firm:
             return True
-        # When involuntary dissolution feature flag is on, check transition filing
-        if flags.is_on('enable_involuntary_dissolution'):
-            if self._has_no_transition_filed_after_restoration():
-                return False
+        # check transition filing
+        if self.transition_needed_but_not_filed():
+            return False
         # Date of last AR or founding date if they haven't yet filed one
         last_ar_date = self.last_ar_date or self.founding_date
         # Good standing is if last AR was filed within the past 1 year, 2 months and 1 day and is in an active state
@@ -501,10 +501,10 @@ class Business(db.Model, Versioned):  # pylint: disable=too-many-instance-attrib
                 return date_cutoff.replace(tzinfo=pytz.UTC) > datetime.utcnow()
         return True
 
-    def _has_no_transition_filed_after_restoration(self) -> bool:
+    def transition_needed_but_not_filed(self) -> bool:
         """Return True for no transition filed after restoration check. Otherwise, return False.
 
-        Check whether the business needs to file Transition but does not file it within 12 months after restoration.
+        Check whether the business needs to file Transition but has not done so
         """
         from legal_api.core.filing import Filing as CoreFiling  # pylint: disable=import-outside-toplevel
 
@@ -512,7 +512,6 @@ class Business(db.Model, Versioned):  # pylint: disable=too-many-instance-attrib
         restoration_filing = aliased(Filing)
         transition_filing = aliased(Filing)
 
-        restoration_filing_effective_cutoff = restoration_filing.effective_date + text("""INTERVAL '1 YEAR'""")
         condition = exists().where(
             and_(
                 self.legal_type != Business.LegalTypes.EXTRA_PRO_A.value,
@@ -523,7 +522,6 @@ class Business(db.Model, Versioned):  # pylint: disable=too-many-instance-attrib
                     CoreFiling.FilingTypes.RESTORATIONAPPLICATION.value
                 ]),
                 restoration_filing._status == Filing.Status.COMPLETED.value,  # pylint: disable=protected-access
-                restoration_filing_effective_cutoff <= func.timezone('UTC', func.now()),
                 not_(
                     exists().where(
                         and_(
@@ -532,10 +530,7 @@ class Business(db.Model, Versioned):  # pylint: disable=too-many-instance-attrib
                              CoreFiling.FilingTypes.TRANSITION.value),
                             (transition_filing._status ==  # pylint: disable=protected-access
                              Filing.Status.COMPLETED.value),
-                            transition_filing.effective_date.between(
-                                restoration_filing.effective_date,
-                                restoration_filing_effective_cutoff
-                            )
+                            transition_filing.effective_date >= restoration_filing.effective_date
                         )
                     )
                 )
@@ -628,6 +623,7 @@ class Business(db.Model, Versioned):  # pylint: disable=too-many-instance-attrib
             'goodStanding': self.good_standing,
             'identifier': self.identifier,
             'inDissolution': self.in_dissolution,
+            'inLiquidation': self.in_liquidation or False,
             'legalName': self.business_legal_name,
             'legalType': self.legal_type,
             'state': self.state.name if self.state else Business.State.ACTIVE.name,

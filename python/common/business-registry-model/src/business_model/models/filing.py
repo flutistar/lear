@@ -39,6 +39,14 @@ class Filing(db.Model):  # pylint: disable=too-many-instance-attributes,too-many
     Manages the filing ledger for the associated business.
     """
 
+    class TempCorpFilingType(str, Enum):
+        """Render enum of temporary corporation filing types."""
+
+        AMALGAMATION = 'amalgamationApplication'
+        CONTINUATION_IN = 'continuationIn'
+        INCORPORATION = 'incorporationApplication'
+        REGISTRATION = 'registration'
+        
     class Status(str, Enum):
         """Render an Enum of the Filing Statuses."""
 
@@ -263,6 +271,21 @@ class Filing(db.Model):  # pylint: disable=too-many-instance-attributes,too-many
                 'CP': 'OTCON',
             }
         },
+        'changeOfOfficers': {
+            'name': 'changeOfOfficers',
+            'title': 'Change of Officers Filing',
+            'codes': {
+                'CP': 'NOCOI',
+                'BEN': 'NOCOI',
+                'BC': 'NOCOI',
+                'ULC': 'NOCOI',
+                'CC': 'NOCOI',
+                'C': 'NOCOI',
+                'CBEN': 'NOCOI',
+                'CUL': 'NOCOI',
+                'CCC': 'NOCOI'
+            }
+        },
         'changeOfRegistration': {
             'name': 'changeOfRegistration',
             'title': 'Change of Registration',
@@ -419,6 +442,20 @@ class Filing(db.Model):  # pylint: disable=too-many-instance-attributes,too-many
             },
             'temporaryCorpTypeCode': 'TMP'
         },
+        'intentToLiquidate': {
+            'name': 'intentToLiquidate',
+            'title': 'Statement of Intent to Liquidate',
+            'codes': {
+                'BC': 'LQSIN',
+                'BEN': 'LQSIN',
+                'ULC': 'LQSIN',
+                'CC': 'LQSIN',
+                'C': 'LQSIN',
+                'CBEN': 'LQSIN',
+                'CUL': 'LQSIN',
+                'CCC': 'LQSIN'
+            }
+        },
         'noticeOfWithdrawal': {
             'name': 'noticeOfWithdrawal',
             'title': 'Notice of Withdrawal',
@@ -513,14 +550,14 @@ class Filing(db.Model):  # pylint: disable=too-many-instance-attributes,too-many
             'name': 'transition',
             'title': 'Transition',
             'codes': {
-                'BC': 'TRANS',
-                'BEN': 'TRANS',
-                'ULC': 'TRANS',
-                'CC': 'TRANS',
-                'C': 'TRANS',
-                'CBEN': 'TRANS',
-                'CUL': 'TRANS',
-                'CCC': 'TRANS'
+                'BC': 'TRANP',
+                'BEN': 'TRANP',
+                'ULC': 'TRANP',
+                'CC': 'TRANP',
+                'C': 'TRANP',
+                'CBEN': 'TRANP',
+                'CUL': 'TRANP',
+                'CCC': 'TRANP'
             }
         },
         'transparencyRegister': {
@@ -866,19 +903,19 @@ class Filing(db.Model):  # pylint: disable=too-many-instance-attributes,too-many
 
         return False
 
-    def set_processed(self, business_type):
+    def set_processed(self):
         """Assign the completion and effective dates, unless they are already set."""
         if not self._completion_date:
             self._completion_date = datetime.now(timezone.utc)
             self._status = Filing.Status.COMPLETED.value
-        if not self.effective_date_can_be_before_payment_completion_date(business_type) and (
+        if not self.effective_date_can_be_before_payment_completion_date() and (
                 self.effective_date is None or (
                     self.payment_completion_date
                     and self.effective_date < self.payment_completion_date  # pylint: disable=comparison-with-callable
                 )):
             self.effective_date = self.payment_completion_date
 
-    def effective_date_can_be_before_payment_completion_date(self, business_type):
+    def effective_date_can_be_before_payment_completion_date(self):
         """For AR or COD filings then the effective date can be before the payment date."""
         return self.filing_type in (Filing.FILINGS['annualReport'].get('name'),
                                     Filing.FILINGS['changeOfDirectors'].get('name'),
@@ -1199,10 +1236,10 @@ class Filing(db.Model):  # pylint: disable=too-many-instance-attributes,too-many
             filter(
                 ~Business.legal_type.in_(excluded_businesses),
                 ~Filing._filing_type.in_(excluded_filings),
-                Filing.colin_event_ids == None,  # pylint: disable=singleton-comparison # noqa: E711;
+                Filing.colin_event_ids == None,  # pylint: disable=singleton-comparison
                 Filing._status == Filing.Status.COMPLETED.value,
                 Filing._source == Filing.Source.LEAR.value,
-                Filing.effective_date != None   # pylint: disable=singleton-comparison # noqa: E711;
+                Filing.effective_date != None   # pylint: disable=singleton-comparison
             ).order_by(Filing.transaction_id).limit(limit).offset(offset).all()
 
         return filings
@@ -1219,7 +1256,7 @@ class Filing(db.Model):  # pylint: disable=too-many-instance-attributes,too-many
     def get_all_filings_by_status(status):
         """Return all filings based on status."""
         filings = db.session.query(Filing). \
-            filter(Filing._status == status).all()  # pylint: disable=singleton-comparison # noqa: E711;
+            filter(Filing._status == status).all()  # pylint: disable=singleton-comparison
         return filings
 
     @staticmethod

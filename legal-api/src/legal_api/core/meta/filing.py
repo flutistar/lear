@@ -320,6 +320,22 @@ FILINGS: Final = {
             'CP': 'OTCON'
         }
     },
+    'changeOfOfficers': {
+        'name': 'changeOfOfficers',
+        'title': 'Change of Officers Filing',
+        'displayName': 'Officer Change',
+        'codes': {
+            'CP': 'NOCOI',
+            'BEN': 'NOCOI',
+            'BC': 'NOCOI',
+            'ULC': 'NOCOI',
+            'CC': 'NOCOI',
+            'CBEN': 'NOCOI',
+            'C': 'NOCOI',
+            'CUL': 'NOCOI',
+            'CCC': 'NOCOI'
+        }
+    },
     'changeOfRegistration': {
         'name': 'changeOfRegistration',
         'title': 'Change of Registration',
@@ -575,6 +591,21 @@ FILINGS: Final = {
             },
         ]
     },
+    'intentToLiquidate': {
+        'name': 'intentToLiquidate',
+        'title': 'Statement of Intent to Liquidate',
+        'displayName': 'Statement of Intent to Liquidate',
+        'codes': {
+            'BC': 'LQSIN',
+            'BEN': 'LQSIN',
+            'ULC': 'LQSIN',
+            'CC': 'LQSIN',
+            'C': 'LQSIN',
+            'CBEN': 'LQSIN',
+            'CUL': 'LQSIN',
+            'CCC': 'LQSIN'
+        }
+    },
     'noticeOfWithdrawal': {
         'name': 'noticeOfWithdrawal',
         'title': 'Notice of Withdrawal',
@@ -714,14 +745,14 @@ FILINGS: Final = {
         'title': 'Transition',
         'displayName': 'Transition Application',
         'codes': {
-            'BC': 'TRANS',
-            'BEN': 'TRANS',
-            'ULC': 'TRANS',
-            'CC': 'TRANS',
-            'C': 'TRANS',
-            'CBEN': 'TRANS',
-            'CUL': 'TRANS',
-            'CCC': 'TRANS'
+            'BC': 'TRANP',
+            'BEN': 'TRANP',
+            'ULC': 'TRANP',
+            'CC': 'TRANP',
+            'C': 'TRANP',
+            'CBEN': 'TRANP',
+            'CUL': 'TRANP',
+            'CCC': 'TRANP'
         },
         'additional': [
             {

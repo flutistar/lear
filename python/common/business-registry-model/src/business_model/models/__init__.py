@@ -18,6 +18,8 @@ from .address import Address
 from .alias import Alias
 from .amalgamating_business import AmalgamatingBusiness
 from .amalgamation import Amalgamation
+from .authorized_role import AuthorizedRole
+from .authorized_role_permission import AuthorizedRolePermission
 from .batch import Batch
 from .batch_processing import BatchProcessing
 from .business import Business
@@ -42,6 +44,8 @@ from .naics_element import NaicsElement
 from .naics_structure import NaicsStructure
 from .office import Office, OfficeType
 from .party_role import Party, PartyRole
+from .party_class import PartyClass
+from .permission import Permission
 from .registration_bootstrap import RegistrationBootstrap
 from .request_tracker import RequestTracker
 from .resolution import Resolution
@@ -58,6 +62,8 @@ __all__ = (
     'Alias',
     'AmalgamatingBusiness',
     'Amalgamation',
+    'AuthorizedRole',
+    'AuthorizedRolePermission',
     'Batch',
     'BatchProcessing',
     'Business',
@@ -84,7 +90,9 @@ __all__ = (
     'Office',
     'OfficeType',
     'Party',
+    'PartyClass',
     'PartyRole',
+    'Permission',
     'RegistrationBootstrap',
     'RequestTracker',
     'Resolution',
