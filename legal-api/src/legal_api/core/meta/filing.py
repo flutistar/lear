@@ -20,7 +20,7 @@ from typing import Final, MutableMapping, Optional
 from document_record_service import (
     DocumentRecordService,
     RequestInfo as DrsRequestInfo,
-    DOCUMENT_TYPES
+    get_document_class
 )
 from legal_api.models import Business
 from legal_api.models import Filing as FilingStorage
@@ -929,13 +929,11 @@ class FilingMeta:  # pylint: disable=too-few-public-methods
         """Get scanned documents from DRS"""
         # Get business identifier
         if document_id := filing.filing_json['filing']['header'].get('documentIdState', {}).get('consumerDocumentId', ''):
-            if doc_type := DOCUMENT_TYPES.get(filing.filing_type, {}):
-                document_class = doc_type['class']
-            else:
-                document_class = DOCUMENT_TYPES['systemIsTheRecord']['class']
+            legal_type = filing.filing_json['filing']['business'].get('legalType')
+            
             response = DocumentRecordService().get_document(
                 request_info=DrsRequestInfo(
-                    document_class=document_class,
+                    document_class=get_document_class(legal_type),
                     consumer_doc_id=document_id
             ))
             if isinstance(response, list) and response:

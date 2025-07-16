@@ -18,10 +18,8 @@ import json
 from http import HTTPStatus
 
 from business_model.models import Filing
-from document_record_service import DocumentRecordService, RequestInfo as DrsRequestInfo
+from document_record_service import DocumentRecordService, RequestInfo as DrsRequestInfo, DOCUMENT_TYPES, get_document_class
 from flask import current_app
-
-from business_filer.common.filing import FilingTypes, DOCUMENT_TYPES
 
 from business_filer.services import flags
 
@@ -99,6 +97,8 @@ def get_int(filing: dict, path: str) -> str:
 
 def sync_drs(filing_submission: Filing): # noqa: PLR0915, PLR0912
     document_id_state = filing_submission.filing_json['filing']['header'].get('documentIdState', {})
+    legal_type = filing_submission.filing_json['filing']['business'].get('legalType')
+
     if  document_id_state and flags.is_on('enable-document-records'):
         filing_type = filing_submission.filing_json['filing']['header']['name']
         temp_reg = filing_submission.temp_reg
@@ -136,14 +136,13 @@ def sync_drs(filing_submission: Filing): # noqa: PLR0915, PLR0912
         else:
             if filing_type and document_id_state['valid']:
                 try:
+                    document_class = get_document_class(legal_type)
                     if DOCUMENT_TYPES.get(filing_type, ''):
-                        document_class = DOCUMENT_TYPES[filing_type]['class']
-                        document_type = DOCUMENT_TYPES[filing_type]['type']
+                        document_type = DOCUMENT_TYPES[filing_type]
                     else:
-                        document_class = DOCUMENT_TYPES['systemIsTheRecord']['class']
-                        document_type = DOCUMENT_TYPES['systemIsTheRecord']['type']
+                        document_type = DOCUMENT_TYPES['systemIsTheRecord']
 
-                    response_json = DocumentRecordService().post_document(
+                    response_json = DocumentRecordService().post_class_document(
                         request_info=DrsRequestInfo(
                             document_class=document_class,
                             document_type=document_type,
