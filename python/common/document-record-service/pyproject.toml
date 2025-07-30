@@ -6,7 +6,7 @@ authors = [
     {name = "Brandon.Galli@gov.bc.ca"},
 ]
 readme = "README.md"
-requires-python = ">=3.9,<4"
+requires-python = ">=3.8,<4"
 dependencies = [
     # "business-model @ git+https://github.com/bcgov/lear.git@main#subdirectory=python/common/business-registry-model",
     "flask (>=1.1.2,<4.0.0)",
@@ -19,10 +19,9 @@ dependencies = [
 packages = [{include = "document_record_service", from = "src"}]
 
 [tool.poetry.group.dev.dependencies]
-pytest = "^8.4.1"
-black = "^25.1.0"
-flake8 = "^7.3.0"
-isort = "^6.0.1"
+pytest = "^8.3.5"
+black = "^22.10.0"
+isort = "^5.12.0"
 
 [tool.flake8]
 ignore = ["F401","E402", "Q000", "E203", "W503"]

@@ -215,7 +215,7 @@ def validate_pdf(file_key: str, file_key_path: str, verify_paper_size: bool = Tr
             file_size = len(file)
         else:
             file = MinioService.get_file(file_key)
-            open_pdf_file = io.BytesIO(file.data )
+            open_pdf_file = io.BytesIO(file.data)
             file_info = MinioService.get_file_info(file_key)
             file_size = file_info.size
         pdf_reader = PyPDF2.PdfFileReader(open_pdf_file)

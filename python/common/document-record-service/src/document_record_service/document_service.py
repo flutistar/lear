@@ -150,7 +150,7 @@ class DocumentRecordService:
                 url,
                 headers=self.headers,
             ).json()
-            current_app.logger.info(f"Get document from document record service {request_info}")
+            current_app.logger.info(f"Get document from document record service {request_info.json}")
 
             return response
         except Exception as e:
@@ -174,7 +174,15 @@ class DocumentRecordService:
         # if not LearDocument.find_by_file_key(document_service_id):
         #     raise LookupError("No matching document found.")
 
-        response = DocumentRecordService().get_document(RequestInfo(document_class, document_service_id))
+        response = DocumentRecordService().get_document(
+            RequestInfo(
+                document_class=document_class, 
+                document_service_id=document_service_id
+            )
+        )
+        print(response, "download response <______________")
+        print(response, "download response <______________")
+        print(response, "download response <______________")
         try:
             if not (isinstance(response, list) and response):
                 return {"error": "Input parameters are invalid."}
